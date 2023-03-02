@@ -35,69 +35,41 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
     var showArrow: Bool { config.showArrow && config.side.shouldShowArrow() }
     var actualArrowHeight: CGFloat { self.showArrow ? config.arrowHeight : 0 }
 
-    var arrowOffsetX: CGFloat {
-        switch config.side {
-        case .bottom, .center, .top:
-            return 0
-        case .left:
-            return (contentWidth / 2 + config.arrowHeight / 2)
-        case .topLeft, .bottomLeft:
-            return (contentWidth / 2
-                + config.arrowHeight / 2
-                - config.borderRadius / 2
-                - config.borderWidth / 2)
-        case .right:
-            return -(contentWidth / 2 + config.arrowHeight / 2)
-        case .topRight, .bottomRight:
-            return -(contentWidth / 2
-                + config.arrowHeight / 2
-                - config.borderRadius / 2
-                - config.borderWidth / 2)
-        }
-    }
-
-    var arrowOffsetY: CGFloat {
-        switch config.side {
-        case .left, .center, .right:
-            return 0
-        case .top:
-            return (contentHeight / 2 + config.arrowHeight / 2)
-        case .topRight, .topLeft:
-            return (contentHeight / 2
-                + config.arrowHeight / 2
-                - config.borderRadius / 2
-                - config.borderWidth / 2)
-        case .bottom:
-            return -(contentHeight / 2 + config.arrowHeight / 2)
-        case .bottomLeft, .bottomRight:
-            return -(contentHeight / 2
-                + config.arrowHeight / 2
-                - config.borderRadius / 2
-                - config.borderWidth / 2)
-        }
-    }
-
     // MARK: - Helper functions
 
-    private func offsetHorizontal(_ g: GeometryProxy) -> CGFloat {
+    private func arrowXPosition(_ g: GeometryProxy) -> CGFloat {
+        return (contentWidth + g.size.width) / 2 - xPosition(g)
+    }
+
+    private func arrowYPosition(_ g: GeometryProxy) -> CGFloat {
         switch config.side {
-        case .left, .topLeft, .bottomLeft:
-            return -(contentWidth + config.margin + actualArrowHeight + animationOffset)
-        case .right, .topRight, .bottomRight:
-            return g.size.width + config.margin + actualArrowHeight + animationOffset
-        case .top, .center, .bottom:
-            return (g.size.width - contentWidth) / 2
+        case .bottom:
+            return (config.borderWidth - actualArrowHeight) / 2
+        case .top:
+            return contentHeight + (actualArrowHeight - config.borderWidth) / 2
         }
     }
 
-    private func offsetVertical(_ g: GeometryProxy) -> CGFloat {
-        switch config.side {
-        case .top, .topRight, .topLeft:
-            return -(contentHeight + config.margin + actualArrowHeight + animationOffset)
-        case .bottom, .bottomLeft, .bottomRight:
-            return g.size.height + config.margin + actualArrowHeight + animationOffset
-        case .left, .center, .right:
-            return (g.size.height - contentHeight) / 2
+    private func xPosition(_ g: GeometryProxy) -> CGFloat {
+        let gutter: CGFloat = config.gutter
+        var x: CGFloat = g.size.width / 2
+        let frame = g.frame(in: .global)
+        if frame.midX + contentWidth / 2 > UIScreen.main.bounds.width - gutter {
+            x -= frame.midX + contentWidth / 2 - UIScreen.main.bounds.width + gutter
+        } else if frame.midX - contentWidth / 2 < gutter {
+            x += contentWidth / 2 - frame.midX + gutter
+        }
+
+        return x
+    }
+
+    private func yPosition(_ g: GeometryProxy) -> CGFloat {
+        let offset = contentHeight / 2 + config.borderWidth + actualArrowHeight + config.margin
+
+        if config.side == .top {
+            return -offset
+        } else {
+            return g.size.height + offset
         }
     }
     
@@ -129,25 +101,27 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
         }
     }
 
-    private var arrowView: some View {
+    private func arrowView(_ g: GeometryProxy) -> some View {
         guard let arrowAngle = config.side.getArrowAngleRadians() else {
             return AnyView(EmptyView())
         }
         
         return AnyView(ArrowShape()
             .rotation(Angle(radians: arrowAngle))
-            .stroke(config.borderColor)
+            .stroke(config.borderColor, lineWidth: config.borderWidth)
+
             .background(ArrowShape()
                 .offset(x: 0, y: 1)
                 .rotation(Angle(radians: arrowAngle))
                 .frame(width: config.arrowWidth+2, height: config.arrowHeight+1)
                 .foregroundColor(config.backgroundColor)
                 
-            ).frame(width: config.arrowWidth, height: config.arrowHeight)
-            .offset(x: self.arrowOffsetX, y: self.arrowOffsetY))
+            )
+                .frame(width: config.arrowWidth, height: config.arrowHeight)
+                .position(x: arrowXPosition(g), y: arrowYPosition(g)))
     }
 
-    private var arrowCutoutMask: some View {
+    private func arrowCutoutMask(_ g: GeometryProxy) -> some View {
         guard let arrowAngle = config.side.getArrowAngleRadians() else {
             return AnyView(EmptyView())
         }
@@ -164,9 +138,7 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
                         width: config.arrowWidth,
                         height: config.arrowHeight + config.borderWidth)
                     .rotationEffect(Angle(radians: arrowAngle))
-                    .offset(
-                        x: self.arrowOffsetX,
-                        y: self.arrowOffsetY)
+                    .position(x: arrowXPosition(g) + config.borderWidth, y: arrowYPosition(g) + actualArrowHeight / 2)
                     .foregroundColor(.black)
             }
             .compositingGroup()
@@ -178,13 +150,13 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
         GeometryReader { g in
             ZStack {
                 RoundedRectangle(cornerRadius: config.borderRadius)
-                    .stroke(config.borderWidth == 0 ? Color.clear : config.borderColor)
+                    .strokeBorder(config.borderColor, lineWidth: config.borderWidth)
                     .frame(width: contentWidth, height: contentHeight)
                     .background(
                         RoundedRectangle(cornerRadius: config.borderRadius)
                             .foregroundColor(config.backgroundColor)
                     )
-                    .mask(self.arrowCutoutMask)
+                    .mask(self.arrowCutoutMask(g))
                 
                 ZStack {
                     content
@@ -196,9 +168,9 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
                         .fixedSize(horizontal: config.width == nil, vertical: true)
                 }
                 .background(self.sizeMeasurer)
-                .overlay(self.arrowView)
+                .overlay(self.arrowView(g))
             }
-            .offset(x: self.offsetHorizontal(g), y: self.offsetVertical(g))
+            .position(x: xPosition(g), y: yPosition(g))
             .animation(self.animation)
             .zIndex(config.zIndex)
             .onAppear {
@@ -218,13 +190,7 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
 struct Tooltip_Previews: PreviewProvider {
     static var previews: some View {
         var config = DefaultTooltipConfig(side: .top)
-        config.enableAnimation = false
-//        config.backgroundColor = Color(red: 0.8, green: 0.9, blue: 1)
-//        config.animationOffset = 10
-//        config.animationTime = 1
-//        config.width = 120
-//        config.height = 80
-        
+        config.enableAnimation = false        
         
         return VStack {
             Text("Say...").tooltip(config: config) {

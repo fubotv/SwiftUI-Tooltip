@@ -12,6 +12,7 @@ public struct ArrowOnlyTooltipConfig: TooltipConfig {
 
     public var side: TooltipSide = .bottom
     public var margin: CGFloat = 8
+    public var gutter: CGFloat = 16
     public var zIndex: Double = 10000
         
     public var width: CGFloat?
