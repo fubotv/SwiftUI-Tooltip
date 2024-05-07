@@ -26,7 +26,10 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
 
     @State private var contentWidth: CGFloat = 10
     @State private var contentHeight: CGFloat = 10
-    
+
+    @State var xPosition: CGFloat = 0
+    @State var yPosition: CGFloat = 0
+
     @State var animationOffset: CGFloat = 0
     @State var animation: Optional<Animation> = nil
 
@@ -170,11 +173,13 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
                 .background(self.sizeMeasurer)
                 .overlay(self.arrowView(g))
             }
-            .position(x: xPosition(g), y: yPosition(g))
+            .position(x: xPosition, y: yPosition)
             .animation(self.animation)
             .zIndex(config.zIndex)
             .onAppear {
                 self.dispatchAnimation()
+                xPosition = xPosition(g)
+                yPosition = yPosition(g)
             }
         }
     }
