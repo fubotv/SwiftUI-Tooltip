@@ -178,8 +178,10 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
             .zIndex(config.zIndex)
             .onAppear {
                 self.dispatchAnimation()
-                xPosition = xPosition(g)
-                yPosition = yPosition(g)
+                Task { @MainActor in
+                    xPosition = xPosition(g)
+                    yPosition = yPosition(g)
+                }
             }
         }
     }
