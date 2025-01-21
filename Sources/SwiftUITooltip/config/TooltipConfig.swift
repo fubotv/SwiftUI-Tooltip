@@ -40,12 +40,4 @@ public protocol TooltipConfig {
     var showArrow: Bool { get set }
     var arrowWidth: CGFloat { get set }
     var arrowHeight: CGFloat { get set }
-    
-    // MARK: - Animation settings
-    var enableAnimation: Bool { get set }
-    var animationOffset: CGFloat { get set }
-    var animationTime: Double { get set }
-    var animation: Optional<Animation> { get set }
-
-    var transition: AnyTransition { get set }
 }

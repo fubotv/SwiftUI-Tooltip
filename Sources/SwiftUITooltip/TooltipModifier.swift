@@ -30,9 +30,6 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
     @State var xPosition: CGFloat = 0
     @State var yPosition: CGFloat = 0
 
-    @State var animationOffset: CGFloat = 0
-    @State var animation: Optional<Animation> = nil
-
     @State var opacity: CGFloat = 0
 
     // MARK: - Computed properties
@@ -75,22 +72,6 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
             return -offset
         } else {
             return g.size.height + offset
-        }
-    }
-    
-    // MARK: - Animation stuff
-    
-    private func dispatchAnimation() {
-        if (config.enableAnimation) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + config.animationTime) {
-                self.animationOffset = config.animationOffset
-                self.animation = config.animation
-                DispatchQueue.main.asyncAfter(deadline: .now() + config.animationTime*0.1) {
-                    self.animationOffset = 0
-                    
-                    self.dispatchAnimation()
-                }
-            }
         }
     }
 
