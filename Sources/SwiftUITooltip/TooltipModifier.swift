@@ -30,8 +30,7 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
     @State var xPosition: CGFloat = 0
     @State var yPosition: CGFloat = 0
 
-    @State var animationOffset: CGFloat = 0
-    @State var animation: Optional<Animation> = nil
+    @State var opacity: CGFloat = 0
 
     // MARK: - Computed properties
 
@@ -73,22 +72,6 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
             return -offset
         } else {
             return g.size.height + offset
-        }
-    }
-    
-    // MARK: - Animation stuff
-    
-    private func dispatchAnimation() {
-        if (config.enableAnimation) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + config.animationTime) {
-                self.animationOffset = config.animationOffset
-                self.animation = config.animation
-                DispatchQueue.main.asyncAfter(deadline: .now() + config.animationTime*0.1) {
-                    self.animationOffset = 0
-                    
-                    self.dispatchAnimation()
-                }
-            }
         }
     }
 
@@ -148,7 +131,7 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
             .luminanceToAlpha()
         )
     }
-
+    
     var tooltipBody: some View {
         GeometryReader { g in
             ZStack {
@@ -174,23 +157,26 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
                 .overlay(self.arrowView(g))
             }
             .position(x: xPosition, y: yPosition)
-            .animation(self.animation)
             .zIndex(config.zIndex)
             .onAppear {
-                self.dispatchAnimation()
-                Task { @MainActor in
-                    xPosition = xPosition(g)
-                    yPosition = yPosition(g)
+                opacity = 0
+            }
+            .task {
+                xPosition = xPosition(g)
+                yPosition = yPosition(g)
+                withAnimation {
+                    opacity = 1
                 }
             }
         }
+        .opacity(opacity)
     }
 
     // MARK: - ViewModifier properties
 
     func body(content: Content) -> some View {
         content
-            .overlay(enabled ? tooltipBody.transition(config.transition) : nil)
+            .overlay(enabled ? tooltipBody: nil)
     }
 }
 
