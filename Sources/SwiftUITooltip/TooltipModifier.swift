@@ -32,6 +32,9 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
 
     @State var opacity: CGFloat = 0
 
+    @State private var hostSize: CGSize = .zero
+    @State private var hostGlobalFrame: CGRect = .zero
+
     // MARK: - Computed properties
 
     var showArrow: Bool { config.showArrow && config.side.shouldShowArrow() }
@@ -53,37 +56,62 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
     }
 
     private func xPosition(_ g: GeometryProxy) -> CGFloat {
+        xPosition(hostSize: g.size, hostGlobalFrame: g.frame(in: .global))
+    }
+
+    private func xPosition(hostSize: CGSize, hostGlobalFrame: CGRect) -> CGFloat {
         let gutter: CGFloat = config.gutter
-        var x: CGFloat = g.size.width / 2
-        let frame = g.frame(in: .global)
-        if frame.midX + contentWidth / 2 > UIScreen.main.bounds.width - gutter {
-            x -= frame.midX + contentWidth / 2 - UIScreen.main.bounds.width + gutter
-        } else if frame.midX - contentWidth / 2 < gutter {
-            x += contentWidth / 2 - frame.midX + gutter
+        var x: CGFloat = hostSize.width / 2
+        if hostGlobalFrame.midX + contentWidth / 2 > UIScreen.main.bounds.width - gutter {
+            x -= hostGlobalFrame.midX + contentWidth / 2 - UIScreen.main.bounds.width + gutter
+        } else if hostGlobalFrame.midX - contentWidth / 2 < gutter {
+            x += contentWidth / 2 - hostGlobalFrame.midX + gutter
         }
 
         return x
     }
 
     private func yPosition(_ g: GeometryProxy) -> CGFloat {
+        yPosition(hostSize: g.size)
+    }
+
+    private func yPosition(hostSize: CGSize) -> CGFloat {
         let offset = contentHeight / 2 + config.borderWidth + actualArrowHeight + config.margin
 
         if config.side == .top {
             return -offset
         } else {
-            return g.size.height + offset
+            return hostSize.height + offset
         }
+    }
+
+    private func updateContentSize(_ size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        let newWidth = config.width ?? size.width
+        let newHeight = config.height ?? size.height
+        guard newWidth != contentWidth || newHeight != contentHeight else { return }
+        contentWidth = newWidth
+        contentHeight = newHeight
+        updatePosition()
+    }
+
+    private func updateHostGeometry(_ g: GeometryProxy) {
+        hostSize = g.size
+        hostGlobalFrame = g.frame(in: .global)
+        updatePosition()
+    }
+
+    private func updatePosition() {
+        xPosition = xPosition(hostSize: hostSize, hostGlobalFrame: hostGlobalFrame)
+        yPosition = yPosition(hostSize: hostSize)
     }
 
     // MARK: - TooltipModifier Body Properties
 
     private var sizeMeasurer: some View {
         GeometryReader { g in
-            Text("")
-                .onAppear {
-                    self.contentWidth = config.width ?? g.size.width
-                    self.contentHeight = config.height ?? g.size.height
-                }
+            Color.clear
+                .preference(key: TooltipContentSizeKey.self, value: g.size)
         }
     }
 
@@ -158,12 +186,15 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
             }
             .position(x: xPosition, y: yPosition)
             .zIndex(config.zIndex)
+            .onPreferenceChange(TooltipContentSizeKey.self) { size in
+                updateContentSize(size)
+            }
             .onAppear {
                 opacity = 0
+                updateHostGeometry(g)
             }
             .task {
-                xPosition = xPosition(g)
-                yPosition = yPosition(g)
+                updateHostGeometry(g)
                 withAnimation {
                     opacity = 1
                 }
@@ -177,6 +208,14 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay(enabled ? tooltipBody: nil)
+    }
+}
+
+private struct TooltipContentSizeKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
     }
 }
 
