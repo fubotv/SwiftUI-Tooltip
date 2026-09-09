@@ -108,13 +108,6 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
 
     // MARK: - TooltipModifier Body Properties
 
-    private var sizeMeasurer: some View {
-        GeometryReader { g in
-            Color.clear
-                .preference(key: TooltipContentSizeKey.self, value: g.size)
-        }
-    }
-
     private func arrowView(_ g: GeometryProxy) -> some View {
         guard let arrowAngle = config.side.getArrowAngleRadians() else {
             return AnyView(EmptyView())
@@ -181,14 +174,13 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
                         )
                         .fixedSize(horizontal: config.width == nil, vertical: true)
                 }
-                .background(self.sizeMeasurer)
+                .onGeometryChange(for: CGSize.self, of: \.size) {
+                    updateContentSize($0)
+                }
                 .overlay(self.arrowView(g))
             }
             .position(x: xPosition, y: yPosition)
             .zIndex(config.zIndex)
-            .onPreferenceChange(TooltipContentSizeKey.self) { size in
-                updateContentSize(size)
-            }
             .onAppear {
                 opacity = 0
                 updateHostGeometry(g)
@@ -208,14 +200,6 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay(enabled ? tooltipBody: nil)
-    }
-}
-
-private struct TooltipContentSizeKey: PreferenceKey {
-    static var defaultValue: CGSize = .zero
-
-    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
-        value = nextValue()
     }
 }
 
