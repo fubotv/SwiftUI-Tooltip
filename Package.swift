@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "SwiftUITooltip",
     platforms: [
-        .iOS(.v15), .tvOS(.v15)
+        .iOS(.v17), .tvOS(.v17)
     ],
     products: [
         .library(
