@@ -27,9 +27,6 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
     @State private var contentWidth: CGFloat = 10
     @State private var contentHeight: CGFloat = 10
 
-    @State var xPosition: CGFloat = 0
-    @State var yPosition: CGFloat = 0
-
     @State var opacity: CGFloat = 0
 
     // MARK: - Computed properties
@@ -76,16 +73,6 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
     }
 
     // MARK: - TooltipModifier Body Properties
-
-    private var sizeMeasurer: some View {
-        GeometryReader { g in
-            Text("")
-                .onAppear {
-                    self.contentWidth = config.width ?? g.size.width
-                    self.contentHeight = config.height ?? g.size.height
-                }
-        }
-    }
 
     private func arrowView(_ g: GeometryProxy) -> some View {
         guard let arrowAngle = config.side.getArrowAngleRadians() else {
@@ -153,17 +140,17 @@ struct TooltipModifier<TooltipContent: View>: ViewModifier {
                         )
                         .fixedSize(horizontal: config.width == nil, vertical: true)
                 }
-                .background(self.sizeMeasurer)
+                .onGeometryChange(for: CGSize.self) { proxy in
+                    proxy.size
+                } action: { newSize in
+                    contentWidth = config.width ?? newSize.width
+                    contentHeight = config.height ?? newSize.height
+                }
                 .overlay(self.arrowView(g))
             }
-            .position(x: xPosition, y: yPosition)
+            .position(x: xPosition(g), y: yPosition(g))
             .zIndex(config.zIndex)
-            .onAppear {
-                opacity = 0
-            }
             .task {
-                xPosition = xPosition(g)
-                yPosition = yPosition(g)
                 withAnimation {
                     opacity = 1
                 }
