@@ -8,7 +8,7 @@
 import SwiftUI
 
 
-public enum TooltipSide: Int {
+public enum TooltipSide: Int, Sendable {
     case top = 4
     case bottom = 0
 
